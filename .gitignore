@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Build outputs
+build/
+PRSum-Safari/
+dist/
+
+# Xcode user data
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+DerivedData/
+
+# IDE/editor configs
+.idea/
+.vscode/

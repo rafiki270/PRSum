@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>PRSum</title>
+    <link rel="stylesheet" href="popup.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <header>
+      <div class="title">PRSum</div>
+      <div class="controls">
+        <button id="settings" title="Open settings">Settings</button>
+        <label class="len">Max chars
+          <input type="checkbox" id="useMax" />
+          <input type="number" id="maxChars" min="400" max="5000" step="100" value="1400" disabled />
+        </label>
+        <label class="len">Engine
+          <select id="engine">
+            <option value="chatgpt">ChatGPT</option>
+            <option value="gemini">Gemini</option>
+          </select>
+        </label>
+        <button id="summarize">Summarize</button>
+        <button id="copy">Copy</button>
+      </div>
+    </header>
+    <main>
+      <pre id="output" class="output" spellcheck="false"></pre>
+      <div id="meta" class="meta"></div>
+      <div id="error" class="error" hidden></div>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+  </html>

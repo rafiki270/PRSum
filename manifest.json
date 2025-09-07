@@ -1,0 +1,31 @@
+{
+  "manifest_version": 2,
+  "name": "PRSum — LLM-Friendly Summarizer",
+  "version": "0.1.0",
+  "description": "Summarize webpages into clean, LLM-ready context by extracting the main content and key points.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "https://api.openai.com/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_title": "Summarize this page",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "options.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
