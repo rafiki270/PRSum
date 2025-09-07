@@ -3,6 +3,21 @@
 const DEFAULT_MODEL = 'gpt-4o-mini'; // OpenAI default; change in options if desired
 const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
 
+function enforceLength(text, budget) {
+  if (!budget || typeof budget !== 'number' || budget <= 0) return (text || '').trim();
+  const str = (text || '').trim();
+  if (str.length <= budget) return str;
+  let cut = str.slice(0, Math.max(0, budget - 20));
+  // Try not to cut mid-line
+  const lastNL = cut.lastIndexOf('\n');
+  if (lastNL > budget * 0.6) cut = cut.slice(0, lastNL);
+  let fixed = cut.trimEnd() + '\n…';
+  // Balance fenced code blocks if needed
+  const fenceCount = (fixed.match(/```/g) || []).length;
+  if (fenceCount % 2 === 1) fixed += '\n```';
+  return fixed;
+}
+
 function fmtPromptFromRaw(raw, maxChars, templates) {
   const title = (raw && raw.title) || '(untitled)';
   const url = (raw && raw.url) || '';
@@ -25,7 +40,7 @@ function fmtPromptFromRaw(raw, maxChars, templates) {
         'Rules: Do not invent code; copy exact lines from the diff. Preserve identifiers, endpoints, constants, versions.',
         'Keep it concise but sufficient for another LLM to reproduce the change elsewhere.'
       ].join('\n'),
-      bounded ? `Target length: ~${budget} characters. Use bullet points and terse phrasing.` : ''
+      bounded ? `Target length: ~${budget} characters. Do not exceed ${Math.round(budget)} characters. Prioritize essentials and stop before exceeding the budget.` : ''
     ].filter(Boolean).join('\n');
     return [
       `PR Title: ${title}`,
@@ -48,7 +63,7 @@ function fmtPromptFromRaw(raw, maxChars, templates) {
   ].join('\n');
   const instructions = [
     basePageInstr,
-    bounded ? `Target length: ~${Math.max(400, Math.min(5000, maxChars))} characters.` : ''
+    bounded ? `Target length: ~${Math.max(400, Math.min(5000, maxChars))} characters. Do not exceed ${Math.round(Math.max(400, Math.min(5000, maxChars)))} characters.` : ''
   ].filter(Boolean).join('\n');
 
   return [
@@ -126,14 +141,16 @@ chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
 
       if (useEngine === 'gemini') {
         if (!store.geminiKey) throw new Error('Missing Gemini API key. Set it in Options.');
-        const summary = await callGemini({ apiKey: store.geminiKey, model: store.geminiModel || DEFAULT_GEMINI_MODEL, prompt });
+        let summary = await callGemini({ apiKey: store.geminiKey, model: store.geminiModel || DEFAULT_GEMINI_MODEL, prompt });
+        if (maxChars) summary = enforceLength(summary, Math.max(200, Math.min(8000, maxChars)));
         sendResponse({ ok: true, summary, provider: 'gemini' });
         return;
       }
 
       // default to OpenAI
       if (!store.openaiKey) throw new Error('Missing OpenAI API key. Set it in Options.');
-      const summary = await callOpenAI({ apiKey: store.openaiKey, model: store.openaiModel || DEFAULT_MODEL, prompt });
+      let summary = await callOpenAI({ apiKey: store.openaiKey, model: store.openaiModel || DEFAULT_MODEL, prompt });
+      if (maxChars) summary = enforceLength(summary, Math.max(200, Math.min(8000, maxChars)));
       sendResponse({ ok: true, summary, provider: 'openai' });
     } catch (e) {
       sendResponse({ ok: false, error: String((e && e.message) || e) });
