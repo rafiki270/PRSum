@@ -48,7 +48,7 @@ Steps
    xcrun safari-web-extension-converter . \
      --project-location ../PRSum-Safari \
      --app-name "PRSum" \
-     --bundle-identifier com.example.PRSum \
+     --bundle-identifier com.rafiki270.PRSum \
      --macos-only \
      --no-open \
      --force
