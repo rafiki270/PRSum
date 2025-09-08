@@ -64,6 +64,7 @@ function initOptions() {
       '3) Added Code: for each file, include essential added lines in fenced code blocks.',
       '4) Removed Code: include only removed lines that are important to understand the change.',
       'Rules: Do not invent code; copy exact lines from the diff. Preserve identifiers, endpoints, constants, versions.',
+      'Important! keep line numbers for the first line of each code block in a format "// line {n}"!!!',
       'Keep it concise but sufficient for another LLM to reproduce the change elsewhere.'
     ].join('\n');
     const DEFAULT_PAGE = [

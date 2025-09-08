@@ -30,7 +30,7 @@ safari:
 	@echo "Done. Open with: make safari-open"
 
 safari-open:
-	@open "$(PROJECT_DIR)/$(APP_NAME).xcodeproj"
+	@open "$(PROJECT_DIR)/$(APP_NAME)/$(APP_NAME).xcodeproj"
 
 safari-clean:
 	@echo "Removing $(PROJECT_DIR) ..."
