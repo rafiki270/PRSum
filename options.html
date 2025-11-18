@@ -19,6 +19,7 @@
       <select id="defaultEngine">
         <option value="chatgpt">ChatGPT (OpenAI)</option>
         <option value="gemini">Gemini (Google)</option>
+        <option value="vertex">Vertex AI (Google Cloud)</option>
       </select>
     </div>
 
@@ -49,6 +50,36 @@
       <label for="geminiModel">Gemini Model</label>
       <input id="geminiModel" type="text" placeholder="gemini-2.0-flash (or your preferred)" />
       <div class="hint">Examples: gemini-2.0-flash, gemini-1.5-pro.</div>
+    </div>
+
+    <h3>Vertex AI</h3>
+    <div class="row">
+      <label for="vertexProject">Project ID</label>
+      <input id="vertexProject" type="text" placeholder="my-gcp-project" />
+    </div>
+    <div class="row">
+      <label for="vertexLocation">Location (region)</label>
+      <input id="vertexLocation" type="text" placeholder="us-central1" />
+      <div class="hint">Examples: us-central1, europe-west1.</div>
+    </div>
+    <div class="row">
+      <label for="vertexModel">Model</label>
+      <input id="vertexModel" type="text" placeholder="gemini-1.5-flash-002 or publishers/google/models/gemini-1.5-flash-002" />
+      <div class="hint">Use short name or full path.</div>
+    </div>
+    <div class="row">
+      <label for="vertexToken">Access Token</label>
+      <input id="vertexToken" type="password" placeholder="Paste short-lived OAuth token" autocomplete="off" />
+      <div class="hint">Tip: <code>gcloud auth print-access-token</code>. Token is stored locally and used as Bearer.</div>
+    </div>
+    <div class="row">
+      <label for="vertexClientId">OAuth Client ID (Web)</label>
+      <input id="vertexClientId" type="text" placeholder="1234567890-abcdefg.apps.googleusercontent.com" />
+      <div class="hint">Use a Google OAuth 2.0 Web client. Add the redirect URI below in Google Cloud Console.</div>
+    </div>
+    <div class="row">
+      <button id="vertexOAuth">Sign in with Google</button>
+      <div class="hint">Redirect URI: <code id="vertexRedirect"></code></div>
     </div>
 
     <h3>Instruction Templates</h3>

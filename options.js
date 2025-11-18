@@ -18,6 +18,13 @@ function initOptions() {
   els.autoSummarize = el('autoSummarize');
   els.prInstructions = el('prInstructions');
   els.pageInstructions = el('pageInstructions');
+  els.vertexProject = el('vertexProject');
+  els.vertexLocation = el('vertexLocation');
+  els.vertexModel = el('vertexModel');
+  els.vertexToken = el('vertexToken');
+  els.vertexClientId = el('vertexClientId');
+  els.vertexOAuth = el('vertexOAuth');
+  els.vertexRedirect = el('vertexRedirect');
 
   el('save').addEventListener('click', () => {
     chrome.storage.local.set({
@@ -29,6 +36,11 @@ function initOptions() {
       autoSummarize: !!els.autoSummarize.checked,
       prInstructions: (els.prInstructions.value || '').trim(),
       pageInstructions: (els.pageInstructions.value || '').trim(),
+      vertexProject: (els.vertexProject.value || '').trim(),
+      vertexLocation: (els.vertexLocation.value || '').trim(),
+      vertexModel: (els.vertexModel.value || '').trim(),
+      vertexToken: (els.vertexToken.value || '').trim(),
+      vertexClientId: (els.vertexClientId.value || '').trim(),
     }, () => {
       if (els.status) {
         els.status.textContent = 'Saved.';
@@ -37,12 +49,12 @@ function initOptions() {
     });
   });
 
-  chrome.storage.local.get(['defaultEngine','openaiKey','openaiModel','geminiKey','geminiModel','autoSummarize','prInstructions','pageInstructions'], res => {
+  chrome.storage.local.get(['defaultEngine','openaiKey','openaiModel','geminiKey','geminiModel','autoSummarize','prInstructions','pageInstructions','vertexProject','vertexLocation','vertexModel','vertexToken','vertexClientId'], res => {
     if (res.defaultEngine === 'chatgpt' || res.defaultEngine === 'gemini') {
       els.defaultEngine.value = res.defaultEngine;
     } else {
       // sanitize legacy values (e.g., 'local')
-      els.defaultEngine.value = 'chatgpt';
+      els.defaultEngine.value = (res.defaultEngine === 'vertex') ? 'vertex' : 'chatgpt';
     }
     if (res.openaiKey) els.openaiKey.value = res.openaiKey;
     if (res.openaiModel) els.openaiModel.value = res.openaiModel;
@@ -75,6 +87,61 @@ function initOptions() {
 
     els.prInstructions.value = res.prInstructions || DEFAULT_PR;
     els.pageInstructions.value = res.pageInstructions || DEFAULT_PAGE;
+
+    if (res.vertexProject) els.vertexProject.value = res.vertexProject;
+    els.vertexLocation.value = res.vertexLocation || 'us-central1';
+    els.vertexModel.value = res.vertexModel || 'gemini-1.5-flash-002';
+    if (res.vertexToken) els.vertexToken.value = res.vertexToken;
+    if (res.vertexClientId) els.vertexClientId.value = res.vertexClientId;
+
+    // Show redirect URI for configuring OAuth Client
+    try {
+      const redirect = chrome.identity.getRedirectURL();
+      if (els.vertexRedirect) els.vertexRedirect.textContent = redirect;
+    } catch (e) {}
+
+    // OAuth button
+    if (els.vertexOAuth) {
+      els.vertexOAuth.addEventListener('click', async () => {
+        const clientId = (els.vertexClientId.value || '').trim();
+        if (!clientId) {
+          alert('Please enter OAuth Client ID first.');
+          return;
+        }
+        const redirectUri = chrome.identity.getRedirectURL();
+        const scope = encodeURIComponent('https://www.googleapis.com/auth/cloud-platform');
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&prompt=consent`;
+        try {
+          chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (responseUrl) => {
+            if (chrome.runtime.lastError) {
+              alert('OAuth error: ' + chrome.runtime.lastError.message);
+              return;
+            }
+            // Extract access_token from URL fragment
+            try {
+              const frag = responseUrl.split('#')[1] || '';
+              const params = new URLSearchParams(frag);
+              const token = params.get('access_token');
+              if (!token) {
+                alert('OAuth failed: No access_token in response.');
+                return;
+              }
+              els.vertexToken.value = token;
+              chrome.storage.local.set({ vertexToken: token }, () => {
+                if (els.status) {
+                  els.status.textContent = 'OAuth token saved.';
+                  setTimeout(() => { els.status.textContent = ''; }, 1200);
+                }
+              });
+            } catch (e) {
+              alert('OAuth parsing error: ' + e.message);
+            }
+          });
+        } catch (e) {
+          alert('OAuth start error: ' + e.message);
+        }
+      });
+    }
   });
 }
 

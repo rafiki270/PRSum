@@ -24,7 +24,7 @@ function fmtPromptFromRaw(raw, maxChars, templates) {
   const bounded = typeof maxChars === 'number' && maxChars > 0;
   const budget = bounded ? Math.max(600, Math.min(6000, maxChars)) : undefined;
 
-  if (raw && raw.hint === 'github_pr') {
+  if (raw && (raw.hint === 'github_pr' || raw.hint === 'pr')) {
     const prText = (raw.prRawText && raw.prRawText.length) ? raw.prRawText : (raw.rawText || '');
     const body = prText.slice(0, 240000);
     const userInstr = templates?.prInstructions;
@@ -127,6 +127,32 @@ async function callGemini({ apiKey, model, prompt }) {
   return text;
 }
 
+async function callVertex({ accessToken, project, location, model, prompt }) {
+  // Accept short model name or full path
+  const short = model && !model.includes('/') ? `publishers/google/models/${model}` : model;
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/${short}:generateContent`;
+  const body = {
+    contents: [ { role: 'user', parts: [{ text: prompt }] } ],
+    generationConfig: { temperature: 0.2 }
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Vertex API error ${resp.status}: ${txt}`);
+  }
+  const data = await resp.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const text = parts.map(p => p.text || '').join('').trim();
+  return text;
+}
+
 chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
   if (!req || req.type !== 'PRSUM_SUMMARIZE_WITH_LLM') return;
   (async () => {
@@ -137,13 +163,24 @@ chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
       });
       const prompt = fmtPromptFromRaw(raw, maxChars, { prInstructions: store.prInstructions, pageInstructions: store.pageInstructions });
 
-      const useEngine = engine || store.defaultEngine || (store.openaiKey ? 'chatgpt' : (store.geminiKey ? 'gemini' : 'chatgpt'));
+      const useEngine = engine || store.defaultEngine || (store.openaiKey ? 'chatgpt' : (store.geminiKey ? 'gemini' : (store.vertexToken ? 'vertex' : 'chatgpt')));
 
       if (useEngine === 'gemini') {
         if (!store.geminiKey) throw new Error('Missing Gemini API key. Set it in Options.');
         let summary = await callGemini({ apiKey: store.geminiKey, model: store.geminiModel || DEFAULT_GEMINI_MODEL, prompt });
         if (maxChars) summary = enforceLength(summary, Math.max(200, Math.min(8000, maxChars)));
         sendResponse({ ok: true, summary, provider: 'gemini' });
+        return;
+      }
+
+      if (useEngine === 'vertex') {
+        if (!store.vertexToken) throw new Error('Missing Vertex access token. Set it in Options.');
+        if (!store.vertexProject) throw new Error('Missing Vertex Project ID. Set it in Options.');
+        const location = store.vertexLocation || 'us-central1';
+        const model = store.vertexModel || 'gemini-1.5-flash-002';
+        let summary = await callVertex({ accessToken: store.vertexToken, project: store.vertexProject, location, model, prompt });
+        if (maxChars) summary = enforceLength(summary, Math.max(200, Math.min(8000, maxChars)));
+        sendResponse({ ok: true, summary, provider: 'vertex' });
         return;
       }
 

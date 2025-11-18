@@ -432,15 +432,35 @@
   }
   
   // Raw payload for LLM-first extraction
+  function isGitLabMRPage() {
+    try {
+      const { hostname, pathname } = location;
+      // Support gitlab.com and self-hosted GitLab
+      const parts = pathname.split('/').filter(Boolean);
+      // Common patterns:
+      // /group/project/-/merge_requests/123[/diffs]
+      // /group/project/merge_requests/123[/diffs]
+      const idx = parts.findIndex(p => p === 'merge_requests');
+      const idxDash = parts.findIndex(p => p === '-' && parts[parts.indexOf(p)+1] === 'merge_requests');
+      const mrIdx = idx >= 0 ? idx : (idxDash >= 0 ? idxDash + 1 : -1);
+      const idIdx = mrIdx >= 0 ? mrIdx + 1 : -1;
+      const hasId = idIdx > 0 && /^\d+$/.test(parts[idIdx]);
+      return hasId;
+    } catch (_) { return false; }
+  }
+
   function getRawPayload() {
     const title = cleanText(document.title || '');
     const url = location.href;
-    const hint = isGitHubPRPage() ? 'github_pr' : 'generic';
+    const isGH = isGitHubPRPage();
+    const isGL = isGitLabMRPage();
+    const hint = (isGH || isGL) ? 'pr' : 'generic';
 
     const cap = (s, n) => (s && s.length > n ? s.slice(0, n) + '\n…[truncated]' : (s || ''));
 
     let prRawText = '';
-    if (hint === 'github_pr') {
+    if (hint === 'pr') {
+      if (isGH) {
       const filesEl = document.querySelector('#files_bucket') || document.querySelector('.js-diff-progressive-container') || document.querySelector('[data-pjax="#files_bucket"]');
       const convoEl = document.querySelector('.discussion-timeline, .Layout-main');
       const metaEl = document.querySelector('.gh-header-show, .gh-header-meta');
@@ -449,6 +469,17 @@
       if (convoEl) blocks.push(convoEl.innerText || '');
       if (filesEl) blocks.push(filesEl.innerText || '');
       prRawText = blocks.filter(Boolean).join('\n\n');
+      } else if (isGL) {
+        // GitLab: try diff and metadata areas
+        const diffsEl = document.querySelector('#diffs, .diffs');
+        const metaEl = document.querySelector('.merge-request, .mr-title, .detail-page-description, header');
+        const discussionEl = document.querySelector('#notes, .mr-notes, .discussion');
+        const blocks = [];
+        if (metaEl) blocks.push(metaEl.innerText || '');
+        if (discussionEl) blocks.push(discussionEl.innerText || '');
+        if (diffsEl) blocks.push(diffsEl.innerText || '');
+        prRawText = blocks.filter(Boolean).join('\n\n');
+      }
     }
 
     const rawText = document.body ? cleanText(document.body.innerText || '') : '';
